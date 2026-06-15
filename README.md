@@ -1,23 +1,26 @@
-# How to Decouple Your Flutter App from Third-Party Packages
+# Decoupled Video Player
 
-A Flutter project demonstrating how to decouple your app from any third-party package using **Dependency Inversion** and the **Adapter** pattern.
+A Flutter project demonstrating how to decouple your app from third-party packages using **Dependency Inversion** and the **Adapter** pattern.
 
-The `video_player` package is one concrete example. The same technique applies to Stripe, Firebase, Google Maps, analytics tools — anything you import from `pub.dev` that you don't control.
+The `video_player` package is one concrete example. The same technique applies to Stripe, Firebase, Google Maps, analytics tools, or any third-party package you don't control.
 
 ## The Problem
 
 Nearly every Flutter tutorial wires third-party packages directly into your widgets:
 
 ```dart
-// You've seen this pattern everywhere — for videos, payments, maps, auth, analytics...
+// The pattern you see everywhere — for video, payments, maps, auth, analytics...
 
-class PaymentScreen extends StatelessWidget {
+class VideoScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    final stripeController = StripePayment();  // ← direct dependence on external type
+    final controller = VideoPlayerController.networkUrl(
+      Uri.parse('https://example.com/video.mp4'),
+    );  // ← direct dependency on package type
     return Column(children: [
-      stripeController.renderButton(),
-      // ...
+      VideoPlayer(controller),
+      PlayPauseButton(controller),
+      SeekBar(controller),
     ]);
   }
 }
@@ -29,8 +32,8 @@ This creates **inversion of control** — your high-level business logic dependi
 ┌──────────────────┐
 │  Your Screen     │
 │  (business logic) │────────┐
-│                  │         │  ← dependency FLOWS THE WRONG WAY
-│  StripeWidget(   │         │     INTO your code
+│                  │         │  ← dependency FLOWS the wrong way
+│  VideoPlayer(    │         │     INTO your code
 │    controller     │         │
 │  )               │         │
 └──────────────────┘         │
@@ -38,7 +41,7 @@ This creates **inversion of control** — your high-level business logic dependi
               ┌──────────────┘
               ▼
 ┌──────────────────────────┐
-│  third-party package     │
+│  video_player package    │
 │  (unstable, changes,     │
 │   gets deprecated)       │
 └──────────────────────────┘
@@ -47,7 +50,7 @@ This creates **inversion of control** — your high-level business logic dependi
 The problems multiply as your app grows:
 
 1. **Testing is painful** — you can't unit-test screens without launching real platform channels
-2. **Swapping packages costs everything** — replacing one provider means rewriting every screen
+2. **Swapping packages costs everything** — replacing `video_player` with `better_player` means rewriting every screen
 3. **State leaks into your UI** — the SDK exposes raw internals your screens don't need and shouldn't touch
 4. **No clear ownership** — who handles errors, retries, loading states? The package decides
 5. **No portability** — your screens are no longer reusable in a different context
@@ -64,7 +67,7 @@ Translated into practice:
 
 - You define an **interface** that describes **what** your app needs
 - An **adapter** in the infrastructure layer implements that interface and wraps the package
-- The dependency arrows point **toward** the interface
+- The dependency arrows point **towards** the interface
 
 ```dart
 // ✅ Your screens depend ONLY on an interface
@@ -116,7 +119,7 @@ This pattern applies identically to payments, maps, auth, analytics, databases, 
 │                                                 │
 │   VideoPlayerServiceImpl   wraps                │
 │      video_player package                       │
-│   StripePaymentImpl          stripes            │
+│   StripePaymentImpl          wraps              │
 │      stripe_payment package                     │
 │   GoogleMapsImpl         wraps                  │
 │      google_maps_flutter                        │
@@ -137,7 +140,7 @@ This pattern applies identically to payments, maps, auth, analytics, databases, 
 ## Concrete Examples — Beyond This Repo
 
 | Third-Party Service  | Interface Contract                         | SDK Your Adapter Wraps            |
-| --- | --- | --- |
+| ---------------------| ------------------------------------------ | --------------------------------- |
 | Video Player         | `play(), pause(), seekTo()`                | `video_player`                    |
 | Payment Gateway      | `charge(amount, currency), refund()`       | `stripe_payment`, `flutter_stripe`|
 | Maps                 | `showPosition(lat, lng), zoomLevel()`      | `google_maps_flutter`             |
@@ -254,7 +257,7 @@ flutter run
 
 ## Extending This Pattern
 
-To add a new service (payments, maps, auth, analytics)... follow the same three files:
+To add a new service (payments, maps, auth, analytics...) follow the same three files:
 
 1. New interface in `services/`
 2. New implementation in `services/`
